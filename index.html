@@ -619,7 +619,7 @@ tbody tr:hover td{background:var(--bg)}
 const API_URL = 'https://script.google.com/macros/s/AKfycbwGSQ3NbnkDqZ01qMSfFAtk-JxMJvp-cA-5SIfK5e8E7MHLBsEjnw8a7_0ZPqA3gLw/exec';
 
 // ── Constantes ───────────────────────────────────────────
-const UNITS = { cei_jose:'CEI Dom José Gaspar'};
+const UNITS = { cei_jose:'CEI Dom José Gaspar', cei_estevao:'CEI Santo Estevão Rei', cei_escolastica:'CEI Santa Escolástica' };
 const SESSION_TIMEOUT_MS = 30 * 60 * 1000;
 const SESSION_MAX_MS     = 8  * 60 * 60 * 1000;
 const PERIODO_LABEL = { mes:'Mês atual', mes_ant:'Mês anterior', ano:'Ano atual', tudo:'Todo o histórico' };
@@ -776,11 +776,6 @@ async function doLogin() {
     setDates();
     iniciarSessaoLocal();
     await carregarDados();
-
-    // Força troca de senha padrão
-    if (res.primeiroLogin || passRaw === 'Admin@2026') {
-      setTimeout(() => abrirModalTrocarSenha(true), 800);
-    }
   } finally {
     btn.disabled = false; btn.textContent = 'Entrar';
   }
