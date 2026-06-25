@@ -43,11 +43,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .login-logo h1{font-size:17px;font-weight:700;color:var(--primary)}
 .login-logo p{font-size:12px;color:var(--text2);margin-top:3px}
 .unit-lbl{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text2);margin-bottom:6px}
-.unit-cards{display:grid;gap:8px;margin-bottom:1.25rem}
-.unit-card{border:1.5px solid var(--border);border-radius:var(--r-sm);padding:10px 14px;cursor:pointer;font-size:13px;font-weight:500;color:var(--text2);transition:all .15s;display:flex;align-items:center;gap:10px;min-height:44px}
-.unit-card:hover{border-color:var(--primary);color:var(--primary);background:var(--primary-lt)}
-.unit-card.selected{border-color:var(--primary);color:var(--primary);background:var(--primary-lt);font-weight:700}
-.unit-card svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
 .fgroup{margin-bottom:14px}
 .fgroup label{display:block;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text2);margin-bottom:5px}
 .fgroup input{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--r-sm);font-size:16px;color:var(--text);background:var(--bg);outline:none;transition:border-color .15s;min-height:44px}
@@ -294,18 +289,6 @@ tbody tr:hover td{background:var(--bg)}
       <h1>Controle de Estoque</h1>
       <p>Mosteiro São Geraldo</p>
     </div>
-    <div class="unit-lbl">Selecione sua unidade</div>
-    <div class="unit-cards">
-      <div class="unit-card" onclick="selectUnit('cei_jose')" id="uc-cei_jose">
-        <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>CEI Dom José Gaspar
-      </div>
-      <div class="unit-card" onclick="selectUnit('cei_estevao')" id="uc-cei_estevao">
-        <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>CEI Santo Estevão Rei
-      </div>
-      <div class="unit-card" onclick="selectUnit('cei_escolastica')" id="uc-cei_escolastica">
-        <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>CEI Santa Escolástica
-      </div>
-    </div>
     <div id="login-err" class="login-err"></div>
     <div id="login-warn" class="login-warn"></div>
     <div class="fgroup"><label>E-mail institucional</label>
@@ -330,6 +313,7 @@ tbody tr:hover td{background:var(--bg)}
       <span class="topbar-user" id="tb-user"></span>
       <span class="role-badge" id="tb-role"></span>
       <span class="topbar-session" id="tb-session"></span>
+      <button class="btn-out" onclick="abrirModalTrocarSenha(false)" title="Alterar senha" style="padding:5px 8px">🔑</button>
       <button class="btn-out" onclick="doLogout()">Sair</button>
     </div>
   </div>
@@ -337,6 +321,13 @@ tbody tr:hover td{background:var(--bg)}
   <div class="layout">
     <div class="sidebar">
       <div class="nav-sec">Estoque</div>
+      <!-- Busca global -->
+      <div style="padding:6px 12px 4px">
+        <input type="text" id="busca-global" placeholder="Buscar..." maxlength="60"
+          style="width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:var(--r-sm);font-size:13px;outline:none;background:var(--bg)"
+          oninput="buscaGlobal(this.value)" onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='var(--border)'">
+      </div>
+      <div id="busca-resultado" style="display:none;padding:4px 12px 8px;max-height:200px;overflow-y:auto"></div>
       <div class="nav-item active" onclick="goPage('painel',this)"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>Painel</div>
       <div class="nav-item" onclick="goPage('estoque',this)"><svg viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>Ver estoque</div>
       <div class="nav-item" onclick="goPage('entrada',this)"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Entrada de material</div>
@@ -379,10 +370,22 @@ tbody tr:hover td{background:var(--bg)}
       <!-- ENTRADA -->
       <div id="page-entrada" class="page">
         <div class="page-title">Registrar entrada</div>
+        <!-- Confirmação de sucesso -->
+        <div id="entrada-sucesso" style="display:none" class="card" onclick="fecharSucesso('entrada')">
+          <div style="text-align:center;padding:1.5rem 1rem">
+            <div style="width:56px;height:56px;border-radius:50%;background:var(--success-bg);border:2px solid var(--success);display:flex;align-items:center;justify-content:center;margin:0 auto 12px">
+              <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="var(--success)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            </div>
+            <div style="font-size:17px;font-weight:700;color:var(--success);margin-bottom:6px">Entrada registrada!</div>
+            <div id="entrada-sucesso-msg" style="font-size:13px;color:var(--text2);margin-bottom:16px"></div>
+            <button class="btn btn-success" onclick="fecharSucesso('entrada')">Registrar nova entrada</button>
+          </div>
+        </div>
+        <div id="entrada-form">
         <div class="card">
           <div class="fgrid">
             <div class="fg"><label>Material <span class="req">*</span></label><select id="ent-mat"></select></div>
-            <div class="fg"><label>Quantidade <span class="req">*</span></label><input type="number" id="ent-qtd" min="1" max="99999" value="1"></div>
+            <div class="fg"><label>Quantidade <span class="req">*</span></label><input type="number" id="ent-qtd" min="1" max="99999" value="1" inputmode="numeric"></div>
           </div>
           <div class="fgrid">
             <div class="fg"><label>Data <span class="req">*</span></label><input type="date" id="ent-data"></div>
@@ -391,24 +394,41 @@ tbody tr:hover td{background:var(--bg)}
           <div class="form-actions"><button class="btn btn-success" onclick="registrarEntrada()"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>Confirmar entrada</button></div>
         </div>
         <div class="card"><div class="card-title">Últimas entradas</div><div id="hist-ent"></div></div>
+        </div>
       </div>
 
       <!-- SAÍDA -->
       <div id="page-saida" class="page">
         <div class="page-title">Registrar saída</div>
+        <!-- Confirmação de sucesso -->
+        <div id="saida-sucesso" style="display:none" class="card" onclick="fecharSucesso('saida')">
+          <div style="text-align:center;padding:1.5rem 1rem">
+            <div style="width:56px;height:56px;border-radius:50%;background:var(--success-bg);border:2px solid var(--success);display:flex;align-items:center;justify-content:center;margin:0 auto 12px">
+              <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="var(--success)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            </div>
+            <div style="font-size:17px;font-weight:700;color:var(--success);margin-bottom:6px">Saída registrada!</div>
+            <div id="saida-sucesso-msg" style="font-size:13px;color:var(--text2);margin-bottom:16px"></div>
+            <button class="btn btn-success" onclick="fecharSucesso('saida')">Registrar nova saída</button>
+          </div>
+        </div>
+        <div id="saida-form">
         <div class="card">
           <div class="fgrid">
             <div class="fg"><label>Material <span class="req">*</span></label><select id="sai-mat"></select></div>
-            <div class="fg"><label>Quantidade <span class="req">*</span></label><input type="number" id="sai-qtd" min="1" max="99999" value="1"></div>
+            <div class="fg"><label>Quantidade <span class="req">*</span></label><input type="number" id="sai-qtd" min="1" max="99999" value="1" inputmode="numeric"></div>
           </div>
           <div class="fgrid">
-            <div class="fg"><label>Responsável <span class="req">*</span></label><input type="text" id="sai-resp" placeholder="Nome completo" maxlength="100"></div>
+            <div class="fg"><label>Responsável <span class="req">*</span></label>
+              <input type="text" id="sai-resp" placeholder="Nome completo" maxlength="100" autocomplete="off" list="lista-responsaveis">
+              <datalist id="lista-responsaveis"></datalist>
+            </div>
             <div class="fg"><label>Data <span class="req">*</span></label><input type="date" id="sai-data"></div>
           </div>
           <div class="fg"><label>Motivo / Observação</label><input type="text" id="sai-obs" placeholder="Ex: limpeza sala 3..." maxlength="200"></div>
           <div class="form-actions"><button class="btn btn-danger" onclick="registrarSaida()" style="background:var(--danger);color:#fff;border-color:var(--danger)"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>Confirmar saída</button></div>
         </div>
         <div class="card"><div class="card-title">Últimas saídas</div><div id="hist-sai"></div></div>
+        </div>
       </div>
 
       <!-- ALERTAS -->
@@ -519,8 +539,8 @@ tbody tr:hover td{background:var(--bg)}
 <!-- Overlay sidebar mobile -->
 <div class="sidebar-overlay" id="sidebar-overlay" onclick="closeSidebar()"></div>
 
-<!-- Bottom nav mobile -->
-<div class="bottom-nav">
+<!-- Bottom nav mobile — oculto até login -->
+<div class="bottom-nav" id="bottom-nav" style="display:none">
   <div class="bottom-nav-items">
     <div class="bn-item active" id="bn-painel" onclick="goPageMobile('painel','bn-painel')"><div class="bn-icon-wrap"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg></div><span>Painel</span></div>
     <div class="bn-item" id="bn-estoque" onclick="goPageMobile('estoque','bn-estoque')"><div class="bn-icon-wrap"><svg viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg></div><span>Estoque</span></div>
@@ -528,6 +548,34 @@ tbody tr:hover td{background:var(--bg)}
     <div class="bn-item" id="bn-saida" onclick="goPageMobile('saida','bn-saida')"><div class="bn-icon-wrap"><svg viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></div><span>Saída</span></div>
     <div class="bn-item" id="bn-alertas" onclick="goPageMobile('alertas','bn-alertas')"><div class="bn-icon-wrap"><svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg><span class="bn-badge" id="bn-badge"></span></div><span>Alertas</span></div>
     <div class="bn-item" id="bn-mais" onclick="toggleSidebar()"><div class="bn-icon-wrap"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg></div><span>Mais</span></div>
+  </div>
+</div>
+
+<!-- Modal troca de senha -->
+<div class="modal-overlay" id="modal-senha">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-title" id="modal-senha-title">Alterar senha</div>
+    <div id="modal-senha-aviso" class="alert a-warn" style="margin-bottom:1rem;display:none">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+      <span>Por segurança, troque a senha padrão antes de continuar.</span>
+    </div>
+    <div class="fg">
+      <label>Senha atual</label>
+      <input type="password" id="senha-atual" placeholder="Digite sua senha atual" maxlength="100">
+    </div>
+    <div class="fg">
+      <label>Nova senha <small style="font-weight:400;text-transform:none">(mín. 8 chars, 1 maiúscula, 1 número)</small></label>
+      <input type="password" id="senha-nova" placeholder="Digite a nova senha" maxlength="100">
+    </div>
+    <div class="fg">
+      <label>Confirmar nova senha</label>
+      <input type="password" id="senha-confirma" placeholder="Repita a nova senha" maxlength="100">
+    </div>
+    <div id="senha-erro" class="login-err" style="display:none"></div>
+    <div class="modal-actions">
+      <button class="btn" id="btn-cancelar-senha" onclick="fecharModalSenha()">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarNovaSenha()">Salvar nova senha</button>
+    </div>
   </div>
 </div>
 
@@ -578,10 +626,10 @@ const PERIODO_LABEL = { mes:'Mês atual', mes_ant:'Mês anterior', ano:'Ano atua
 
 // ── Estado da aplicação ──────────────────────────────────
 let CU = null, CUnit = null, TOKEN = null;
-let materiais = [], movimentos = [], setores = [];
+let materiais = [], movimentos = [], setores = [], ultimosResponsaveis = [];
 let sessionExpAt = 0, sessionAbsAt = 0;
 let sessionTick = null, inactivityTimer = null;
-let selectedUnit = null, lastRelData = null, auditCache = [];
+let lastRelData = null, auditCache = [];
 
 // ╔═══════════════════════════════════════════════════════╗
 // ║  SEGURANÇA — HASH SHA-256                             ║
@@ -645,10 +693,23 @@ function loading(show, msg) {
 // ╔═══════════════════════════════════════════════════════╗
 // ║  SESSÃO LOCAL                                         ║
 // ╚═══════════════════════════════════════════════════════╝
+const SESS_KEY = 'obs_sess_v1'; // chave no sessionStorage
+
+function salvarSessaoLocal(token, cu, cunit, expAt, absAt) {
+  try {
+    sessionStorage.setItem(SESS_KEY, JSON.stringify({ token, cu, cunit, expAt, absAt }));
+  } catch(e) {}
+}
+
+function limparSessaoLocal() {
+  try { sessionStorage.removeItem(SESS_KEY); } catch(e) {}
+}
+
 function iniciarSessaoLocal() {
   const now = Date.now();
   sessionExpAt = now + SESSION_TIMEOUT_MS;
   sessionAbsAt = now + SESSION_MAX_MS;
+  salvarSessaoLocal(TOKEN, CU, CUnit, sessionExpAt, sessionAbsAt);
   resetInatividade();
   clearInterval(sessionTick);
   sessionTick = setInterval(() => {
@@ -658,6 +719,8 @@ function iniciarSessaoLocal() {
     const m = Math.floor(rem / 60000), s = Math.floor((rem % 60000) / 1000);
     const el = document.getElementById('tb-session');
     if (el) el.textContent = `Sessão: ${m}m${String(s).padStart(2,'0')}s`;
+    // Atualiza sessão salva periodicamente
+    salvarSessaoLocal(TOKEN, CU, CUnit, sessionExpAt, sessionAbsAt);
   }, 1000);
 }
 
@@ -682,7 +745,6 @@ function selectUnit(key) {
 
 async function doLogin() {
   hideMsg();
-  if (!selectedUnit) { showErr('Selecione a unidade.'); return; }
   const email   = san(document.getElementById('l-email').value.trim().toLowerCase(), 120);
   const passRaw = document.getElementById('l-pass').value;
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showErr('Informe um e-mail válido.'); return; }
@@ -693,23 +755,32 @@ async function doLogin() {
 
   try {
     const passHash = await sha256(passRaw);
-    const res = await api('login', { email, passHash, unit: selectedUnit });
-    if (!res.ok) { showErr(res.erro || 'Erro ao fazer login.'); return; }
+    // Envia sem unit — o servidor detecta automaticamente pelo cadastro do usuário
+    const res = await api('login', { email, passHash });
+    if (!res.ok) { showErr('E-mail ou senha incorretos.'); return; }
 
-    TOKEN = res.token; CU = { nome: res.nome, perfil: res.perfil, email }; CUnit = res.unit;
+    TOKEN = res.token;
+    CU    = { nome: res.nome, perfil: res.perfil, email };
+    CUnit = res.unit;
 
     document.getElementById('login-screen').style.display = 'none';
     document.getElementById('app').style.display = 'block';
+    document.getElementById('bottom-nav').style.display = 'block';
     document.getElementById('tb-unit').textContent = UNITS[CUnit];
     document.getElementById('tb-user').textContent = CU.nome;
     const rb = document.getElementById('tb-role');
     rb.textContent = CU.perfil === 'admin' ? 'Admin' : 'Usuário';
-    rb.className = 'role-badge ' + (CU.perfil === 'admin' ? 'rb-admin' : 'rb-user');
+    rb.className   = 'role-badge ' + (CU.perfil === 'admin' ? 'rb-admin' : 'rb-user');
     document.querySelectorAll('.adm').forEach(el => el.style.display = CU.perfil === 'admin' ? '' : 'none');
 
     setDates();
     iniciarSessaoLocal();
     await carregarDados();
+
+    // Força troca de senha padrão
+    if (res.primeiroLogin || passRaw === 'Admin@2026') {
+      setTimeout(() => abrirModalTrocarSenha(true), 800);
+    }
   } finally {
     btn.disabled = false; btn.textContent = 'Entrar';
   }
@@ -718,14 +789,15 @@ async function doLogin() {
 async function doLogout(auto) {
   if (TOKEN) api('logout', {}, false);
   clearInterval(sessionTick); clearTimeout(inactivityTimer);
-  TOKEN = null; CU = null; CUnit = null; selectedUnit = null;
-  materiais = []; movimentos = []; setores = []; lastRelData = null;
+  limparSessaoLocal();
+  TOKEN = null; CU = null; CUnit = null;
+  materiais = []; movimentos = []; setores = []; lastRelData = null; ultimosResponsaveis = [];
   document.getElementById('app').style.display = 'none';
+  document.getElementById('bottom-nav').style.display = 'none';
   document.getElementById('login-screen').style.display = 'flex';
   document.getElementById('l-email').value = '';
   document.getElementById('l-pass').value = '';
   document.getElementById('tb-session').textContent = '';
-  document.querySelectorAll('.unit-card').forEach(c => c.classList.remove('selected'));
   resetNav();
   if (auto) showWarn('Sua sessão expirou. Faça login novamente.');
 }
@@ -734,9 +806,124 @@ function showErr(m)  { const e=document.getElementById('login-err');  e.textCont
 function showWarn(m) { const e=document.getElementById('login-warn'); e.textContent=m; e.style.display='block'; }
 function hideMsg()   { ['login-err','login-warn'].forEach(id=>document.getElementById(id).style.display='none'); }
 
+// ╔═══════════════════════════════════════════════════════╗
+// ║  RESTAURAÇÃO DE SESSÃO AO RECARREGAR                  ║
+// ╚═══════════════════════════════════════════════════════╝
+(async function restaurarSessao() {
+  try {
+    const raw = sessionStorage.getItem(SESS_KEY);
+    if (!raw) return;
+    const sess = JSON.parse(raw);
+    if (!sess?.token || !sess?.cu || !sess?.cunit) return;
+    // Verifica se a sessão ainda é válida pelo tempo
+    if (Date.now() > sess.expAt || Date.now() > sess.absAt) {
+      limparSessaoLocal(); return;
+    }
+    // Valida o token no servidor
+    loading(true, 'Restaurando sessão...');
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'ping', token: sess.token }),
+      headers: { 'Content-Type': 'text/plain' }
+    });
+    const data = await res.json();
+    loading(false);
+    if (!data.ok) { limparSessaoLocal(); return; }
+
+    // Sessão válida — restaura sem precisar logar novamente
+    TOKEN  = sess.token;
+    CU     = sess.cu;
+    CUnit  = sess.cunit;
+    sessionExpAt = sess.expAt;
+    sessionAbsAt = sess.absAt;
+
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    document.getElementById('bottom-nav').style.display = 'block';
+    document.getElementById('tb-unit').textContent = UNITS[CUnit] || CUnit;
+    document.getElementById('tb-user').textContent = CU.nome;
+    const rb = document.getElementById('tb-role');
+    rb.textContent = CU.perfil === 'admin' ? 'Admin' : 'Usuário';
+    rb.className   = 'role-badge ' + (CU.perfil === 'admin' ? 'rb-admin' : 'rb-user');
+    document.querySelectorAll('.adm').forEach(el => el.style.display = CU.perfil === 'admin' ? '' : 'none');
+    setDates();
+    resetInatividade();
+    clearInterval(sessionTick);
+    sessionTick = setInterval(() => {
+      if (!CU) { clearInterval(sessionTick); return; }
+      const rem = Math.max(0, sessionExpAt - Date.now());
+      if (rem <= 0) { doLogout(true); return; }
+      const m = Math.floor(rem / 60000), s = Math.floor((rem % 60000) / 1000);
+      const el = document.getElementById('tb-session');
+      if (el) el.textContent = `Sessão: ${m}m${String(s).padStart(2,'0')}s`;
+    }, 1000);
+    await carregarDados();
+  } catch(e) {
+    loading(false);
+    limparSessaoLocal();
+  }
+})();
+
+// Event listeners de teclado
 document.getElementById('l-pass').addEventListener('keydown',  e => { if(e.key==='Enter') doLogin(); });
 document.getElementById('l-email').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
 document.addEventListener('keydown', e => { if(e.key==='Escape') { closeSidebar(); fecharModal(); fecharModalEditar(); } });
+
+// ╔═══════════════════════════════════════════════════════╗
+// ║  BUSCA GLOBAL                                         ║
+// ╚═══════════════════════════════════════════════════════╝
+function buscaGlobal(q) {
+  const el = document.getElementById('busca-resultado');
+  if (!q || q.trim().length < 2) { el.style.display = 'none'; return; }
+  const t = q.toLowerCase().trim();
+
+  // Busca em materiais
+  const mats = materiais.filter(m =>
+    m.nome.toLowerCase().includes(t) || m.setor.toLowerCase().includes(t)
+  ).slice(0, 5);
+
+  // Busca em movimentos (responsável ou material)
+  const movs = movimentos.filter(mv =>
+    mv.nome.toLowerCase().includes(t) || (mv.resp && mv.resp.toLowerCase().includes(t))
+  ).slice().reverse().slice(0, 5);
+
+  if (!mats.length && !movs.length) {
+    el.innerHTML = '<div style="font-size:12px;color:var(--text3);padding:4px 0">Nenhum resultado.</div>';
+    el.style.display = 'block'; return;
+  }
+
+  let html = '';
+  if (mats.length) {
+    html += '<div style="font-size:10px;font-weight:700;text-transform:uppercase;color:var(--text3);padding:4px 0 2px">Materiais</div>';
+    html += mats.map(m => `
+      <div onclick="goPage('estoque',null);document.getElementById('est-busca').value='${esc(m.nome)}';renderEstoque();document.getElementById('busca-global').value='';document.getElementById('busca-resultado').style.display='none'"
+        style="padding:6px 4px;cursor:pointer;border-radius:4px;font-size:12px;display:flex;align-items:center;justify-content:space-between"
+        onmouseover="this.style.background='var(--bg)'" onmouseout="this.style.background=''">
+        <span><strong>${esc(m.nome)}</strong> <span style="color:var(--text3)">${esc(m.setor)}</span></span>
+        <span style="font-weight:700;color:${Number(m.qtd)===0?'var(--danger)':Number(m.qtd)<=Number(m.min)?'var(--warn)':'var(--success)'}">${m.qtd} ${esc(m.unidade)}</span>
+      </div>`).join('');
+  }
+  if (movs.length) {
+    html += '<div style="font-size:10px;font-weight:700;text-transform:uppercase;color:var(--text3);padding:6px 0 2px;margin-top:4px">Movimentações</div>';
+    html += movs.map(mv => `
+      <div onclick="goPage('historico',null);document.getElementById('hist-busca').value='${esc(t)}';renderHistFull();document.getElementById('busca-global').value='';document.getElementById('busca-resultado').style.display='none'"
+        style="padding:6px 4px;cursor:pointer;border-radius:4px;font-size:12px"
+        onmouseover="this.style.background='var(--bg)'" onmouseout="this.style.background=''">
+        <span class="badge ${mv.tipo==='entrada'?'b-in':'b-out'}" style="font-size:10px">${esc(mv.tipo)}</span>
+        <strong>${esc(mv.nome)}</strong>${mv.resp?' <span style="color:var(--text3)">· '+esc(mv.resp)+'</span>':''} <span style="color:var(--text3)">${esc(mv.data)}</span>
+      </div>`).join('');
+  }
+  el.innerHTML = html;
+  el.style.display = 'block';
+}
+
+// Fecha busca ao clicar fora
+document.addEventListener('click', e => {
+  if (!e.target.closest('#busca-global') && !e.target.closest('#busca-resultado')) {
+    const el = document.getElementById('busca-resultado');
+    if (el) el.style.display = 'none';
+  }
+});
 
 // ╔═══════════════════════════════════════════════════════╗
 // ║  CARGA INICIAL DE DADOS                               ║
@@ -753,6 +940,7 @@ async function carregarDados() {
     if (rMovs.ok) movimentos = rMovs.movimentos || [];
     if (rSets.ok) setores    = rSets.setores    || [];
     popularSelects();
+    atualizarSugestoesResponsavel();
     renderPainel();
     renderEstoque();
     renderHistSide('entrada', 'hist-ent');
@@ -910,6 +1098,37 @@ function renderHistFull() {
 }
 
 // ╔═══════════════════════════════════════════════════════╗
+// ║  CONFIRMAÇÃO DE SUCESSO                               ║
+// ╚═══════════════════════════════════════════════════════╝
+function mostrarSucesso(tipo, msg) {
+  document.getElementById(tipo + '-form').style.display = 'none';
+  document.getElementById(tipo + '-sucesso-msg').textContent = msg;
+  document.getElementById(tipo + '-sucesso').style.display = 'block';
+  // Auto-fecha após 4 segundos
+  setTimeout(() => fecharSucesso(tipo), 4000);
+}
+function fecharSucesso(tipo) {
+  document.getElementById(tipo + '-sucesso').style.display = 'none';
+  document.getElementById(tipo + '-form').style.display = 'block';
+}
+
+// ╔═══════════════════════════════════════════════════════╗
+// ║  SUGESTÕES DE RESPONSÁVEL                             ║
+// ╚═══════════════════════════════════════════════════════╝
+function atualizarSugestoesResponsavel() {
+  // Coleta nomes únicos das últimas saídas
+  const nomes = [...new Set(
+    movimentos.filter(m => m.tipo === 'saida' && m.resp)
+              .slice().reverse()
+              .slice(0, 50)
+              .map(m => m.resp)
+  )].slice(0, 10);
+  ultimosResponsaveis = nomes;
+  const dl = document.getElementById('lista-responsaveis');
+  if (dl) dl.innerHTML = nomes.map(n => `<option value="${esc(n)}">`).join('');
+}
+
+// ╔═══════════════════════════════════════════════════════╗
 // ║  ENTRADA / SAÍDA                                      ║
 // ╚═══════════════════════════════════════════════════════╝
 async function registrarEntrada() {
@@ -918,13 +1137,12 @@ async function registrarEntrada() {
   if(!qtd||qtd<1||qtd>99999){toast('Quantidade inválida.','err');return;}
   const res=await api('entrada',{matId,qtd,obs,data});
   if(!res.ok){toast(res.erro||'Erro ao registrar.','err');return;}
-  // Atualiza local
   const m=materiais.find(x=>x.id===matId);
   if(m) m.qtd=String(res.novaQtd);
   movimentos.push({tipo:'entrada',nome:m?.nome||'',setor:m?.setor||'',qtd:String(qtd),unidade:m?.unidade||'',data,resp:'',obs,user:CU.nome});
   renderPainel(); renderEstoque(); renderHistSide('entrada','hist-ent');
-  toast(`Entrada: +${qtd} de ${m?.nome}`);
   document.getElementById('ent-qtd').value='1'; document.getElementById('ent-obs').value='';
+  mostrarSucesso('entrada', `+${qtd} ${m?.unidade}(s) de ${m?.nome} registrado com sucesso.`);
 }
 
 async function registrarSaida() {
@@ -937,11 +1155,15 @@ async function registrarSaida() {
   const m=materiais.find(x=>x.id===matId);
   if(m) m.qtd=String(res.novaQtd);
   movimentos.push({tipo:'saida',nome:m?.nome||'',setor:m?.setor||'',qtd:String(qtd),unidade:m?.unidade||'',data,resp,obs,user:CU.nome});
+  atualizarSugestoesResponsavel();
   renderPainel(); renderEstoque(); renderHistSide('saida','hist-sai');
-  if(res.status==='critical') toast(`ATENÇÃO: ${m?.nome} foi esgotado!`,'err');
-  else if(res.status==='low') toast(`Aviso: ${m?.nome} abaixo do mínimo.`,'warn');
-  else toast(`Saída: -${qtd} de ${m?.nome} (resp.: ${resp})`);
   document.getElementById('sai-qtd').value='1'; document.getElementById('sai-resp').value=''; document.getElementById('sai-obs').value='';
+  let msg=`-${qtd} ${m?.unidade}(s) de ${m?.nome} retirado por ${resp}.`;
+  if(res.status==='critical') msg+=' Material esgotado!';
+  else if(res.status==='low') msg+=' Estoque abaixo do minimo.';
+  mostrarSucesso('saida', msg);
+  if(res.status==='critical') toast(`ATENCAO: ${m?.nome} foi esgotado!`,'err');
+  else if(res.status==='low') toast(`Aviso: ${m?.nome} abaixo do minimo.`,'warn');
 }
 
 // ╔═══════════════════════════════════════════════════════╗
@@ -1174,6 +1396,67 @@ function exportarExcel() {
   a.href=url; a.download=`estoque_${UNITS[d.unit].replace(/\s/g,'_')}_${d.periodo}_${new Date().toISOString().split('T')[0]}.csv`;
   document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
   toast('CSV gerado! Abra no Excel.');
+}
+
+// ╔═══════════════════════════════════════════════════════╗
+// ║  TROCA DE SENHA                                       ║
+// ╚═══════════════════════════════════════════════════════╝
+let trocaSenhaObrigatoria = false;
+
+function abrirModalTrocarSenha(obrigatoria) {
+  trocaSenhaObrigatoria = obrigatoria;
+  const aviso = document.getElementById('modal-senha-aviso');
+  const btnCancelar = document.getElementById('btn-cancelar-senha');
+  const titulo = document.getElementById('modal-senha-title');
+  // Se for obrigatória (primeiro login/senha padrão), não deixa cancelar
+  aviso.style.display = obrigatoria ? 'flex' : 'none';
+  btnCancelar.style.display = obrigatoria ? 'none' : '';
+  titulo.textContent = obrigatoria ? 'Troque sua senha para continuar' : 'Alterar senha';
+  // Limpa campos
+  ['senha-atual','senha-nova','senha-confirma'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('senha-erro').style.display = 'none';
+  document.getElementById('modal-senha').classList.add('open');
+  document.getElementById('senha-atual').focus();
+}
+
+function fecharModalSenha() {
+  if (trocaSenhaObrigatoria) {
+    // Não deixa fechar se for obrigatória — força logout
+    if (confirm('Você precisa trocar a senha para usar o sistema. Deseja sair?')) {
+      document.getElementById('modal-senha').classList.remove('open');
+      doLogout();
+    }
+    return;
+  }
+  document.getElementById('modal-senha').classList.remove('open');
+}
+
+async function salvarNovaSenha() {
+  const atual    = document.getElementById('senha-atual').value;
+  const nova     = document.getElementById('senha-nova').value;
+  const confirma = document.getElementById('senha-confirma').value;
+  const erroEl   = document.getElementById('senha-erro');
+
+  function mostrarErro(msg) { erroEl.textContent = msg; erroEl.style.display = 'block'; }
+  erroEl.style.display = 'none';
+
+  if (!atual)           { mostrarErro('Informe a senha atual.'); return; }
+  if (!nova)            { mostrarErro('Informe a nova senha.'); return; }
+  if (nova.length < 8)  { mostrarErro('A nova senha deve ter pelo menos 8 caracteres.'); return; }
+  if (!/[A-Z]/.test(nova)) { mostrarErro('A nova senha deve ter pelo menos uma letra maiúscula.'); return; }
+  if (!/[0-9]/.test(nova)) { mostrarErro('A nova senha deve ter pelo menos um número.'); return; }
+  if (nova !== confirma) { mostrarErro('As senhas não conferem.'); return; }
+  if (nova === atual)   { mostrarErro('A nova senha deve ser diferente da atual.'); return; }
+
+  const atualHash = await sha256(atual);
+  const novaHash  = await sha256(nova);
+
+  const res = await api('trocarSenha', { atualHash, novaHash });
+  if (!res.ok) { mostrarErro(res.erro || 'Erro ao trocar senha. Verifique a senha atual.'); return; }
+
+  document.getElementById('modal-senha').classList.remove('open');
+  trocaSenhaObrigatoria = false;
+  toast('Senha alterada com sucesso!');
 }
 
 // ╔═══════════════════════════════════════════════════════╗
