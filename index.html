@@ -208,6 +208,18 @@ tbody tr:hover td{background:var(--bg)}
 .empty svg{width:38px;height:38px;stroke:var(--text3);fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;margin-bottom:10px}
 .section-divider{height:1px;background:var(--border);margin:1.25rem 0}
 
+/* AUTOCOMPLETE MATERIAL */
+.mat-item{padding:10px 14px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:8px}
+.mat-item:last-child{border-bottom:none}
+.mat-item:hover,.mat-item.ativo{background:var(--primary-lt)}
+.mat-item-nome{font-weight:600;color:var(--text)}
+.mat-item-sub{font-size:11px;color:var(--text3)}
+.mat-item-qtd{font-weight:700;white-space:nowrap;font-size:12px;flex-shrink:0}
+.mat-item-qtd.ok{color:var(--success)}.mat-item-qtd.low{color:var(--warn)}.mat-item-qtd.critical{color:var(--danger)}
+.mat-tag{display:flex;align-items:center;gap:8px;background:var(--primary-lt);border:1px solid var(--primary);border-radius:var(--r-sm);padding:8px 12px;margin-top:4px}
+.mat-tag-nome{font-size:13px;font-weight:600;color:var(--primary);flex:1}
+.mat-tag-limpar{background:none;border:none;cursor:pointer;color:var(--danger);font-size:20px;padding:0;line-height:1;min-width:28px;min-height:28px;display:flex;align-items:center;justify-content:center}
+
 /* IMPRESSÃO */
 #print-area{display:none}
 @media print{
@@ -384,7 +396,17 @@ tbody tr:hover td{background:var(--bg)}
         <div id="entrada-form">
         <div class="card">
           <div class="fgrid">
-            <div class="fg"><label>Material <span class="req">*</span></label><select id="ent-mat"></select></div>
+            <div class="fg">
+              <label>Material <span class="req">*</span></label>
+              <div style="position:relative">
+                <input type="text" id="ent-mat-busca" placeholder="Digite para buscar..." maxlength="100" autocomplete="off"
+                  oninput="filtrarMaterialBusca('ent')" onfocus="filtrarMaterialBusca('ent')"
+                  style="width:100%;padding:10px 11px;border:1px solid var(--border);border-radius:var(--r-sm);font-size:16px;color:var(--text);background:#fff;outline:none;min-height:44px">
+                <input type="hidden" id="ent-mat">
+                <div id="ent-mat-lista" style="display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid var(--primary);border-top:none;border-radius:0 0 var(--r-sm) var(--r-sm);max-height:220px;overflow-y:auto;z-index:100;box-shadow:0 4px 12px rgba(0,0,0,.12)"></div>
+              </div>
+              <div id="ent-mat-info" style="font-size:11px;color:var(--text2);margin-top:4px;display:none"></div>
+            </div>
             <div class="fg"><label>Quantidade <span class="req">*</span></label><input type="number" id="ent-qtd" min="1" max="99999" value="1" inputmode="numeric"></div>
           </div>
           <div class="fgrid">
@@ -414,7 +436,17 @@ tbody tr:hover td{background:var(--bg)}
         <div id="saida-form">
         <div class="card">
           <div class="fgrid">
-            <div class="fg"><label>Material <span class="req">*</span></label><select id="sai-mat"></select></div>
+            <div class="fg">
+              <label>Material <span class="req">*</span></label>
+              <div style="position:relative">
+                <input type="text" id="sai-mat-busca" placeholder="Digite para buscar..." maxlength="100" autocomplete="off"
+                  oninput="filtrarMaterialBusca('sai')" onfocus="filtrarMaterialBusca('sai')"
+                  style="width:100%;padding:10px 11px;border:1px solid var(--border);border-radius:var(--r-sm);font-size:16px;color:var(--text);background:#fff;outline:none;min-height:44px">
+                <input type="hidden" id="sai-mat">
+                <div id="sai-mat-lista" style="display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid var(--primary);border-top:none;border-radius:0 0 var(--r-sm) var(--r-sm);max-height:220px;overflow-y:auto;z-index:100;box-shadow:0 4px 12px rgba(0,0,0,.12)"></div>
+              </div>
+              <div id="sai-mat-info" style="font-size:11px;color:var(--text2);margin-top:4px;display:none"></div>
+            </div>
             <div class="fg"><label>Quantidade <span class="req">*</span></label><input type="number" id="sai-qtd" min="1" max="99999" value="1" inputmode="numeric"></div>
           </div>
           <div class="fgrid">
@@ -940,6 +972,111 @@ document.addEventListener('click', e => {
 });
 
 // ╔═══════════════════════════════════════════════════════╗
+// ║  BUSCA DE MATERIAL COM AUTOCOMPLETE                   ║
+// ╚═══════════════════════════════════════════════════════╝
+function filtrarMaterialBusca(prefixo) {
+  const inputEl  = document.getElementById(prefixo + '-mat-busca');
+  const listaEl  = document.getElementById(prefixo + '-mat-lista');
+  const hiddenEl = document.getElementById(prefixo + '-mat');
+  const q        = inputEl.value.trim().toLowerCase();
+
+  // Se já tem material selecionado e o campo não foi alterado, não filtra
+  if (hiddenEl.value && inputEl.dataset.selecionado === inputEl.value) return;
+
+  // Filtra materiais pelo nome ou setor
+  const resultados = q.length === 0
+    ? materiais.slice(0, 20)  // mostra os 20 primeiros se campo vazio
+    : materiais.filter(m =>
+        m.nome.toLowerCase().includes(q) ||
+        m.setor.toLowerCase().includes(q)
+      ).slice(0, 20);
+
+  if (!resultados.length) {
+    listaEl.innerHTML = '<div style="padding:12px;font-size:13px;color:var(--text3)">Nenhum material encontrado.</div>';
+    listaEl.style.display = 'block';
+    return;
+  }
+
+  listaEl.innerHTML = resultados.map(m => {
+    const s   = st(m);
+    const cor = s === 'critical' ? 'critical' : s === 'low' ? 'low' : 'ok';
+    const qtdTxt = `${m.qtd} ${esc(m.unidade)}`;
+    return `<div class="mat-item" onclick="selecionarMaterial('${prefixo}','${esc(m.id)}','${esc(m.nome)}','${esc(m.setor)}','${m.qtd}','${esc(m.unidade)}','${cor}')">
+      <div>
+        <div class="mat-item-nome">${esc(m.nome)}</div>
+        <div class="mat-item-sub">${esc(m.setor)}</div>
+      </div>
+      <div class="mat-item-qtd ${cor}">${qtdTxt}</div>
+    </div>`;
+  }).join('');
+
+  listaEl.style.display = 'block';
+}
+
+function selecionarMaterial(prefixo, id, nome, setor, qtd, unidade, status) {
+  const inputEl  = document.getElementById(prefixo + '-mat-busca');
+  const listaEl  = document.getElementById(prefixo + '-mat-lista');
+  const hiddenEl = document.getElementById(prefixo + '-mat');
+  const infoEl   = document.getElementById(prefixo + '-mat-info');
+
+  hiddenEl.value = id;
+  inputEl.value  = nome;
+  inputEl.dataset.selecionado = nome;
+  listaEl.style.display = 'none';
+
+  // Mostra info do material selecionado
+  const cor = status === 'critical' ? 'var(--danger)' : status === 'low' ? 'var(--warn)' : 'var(--success)';
+  const msg = status === 'critical' ? 'Esgotado!' : status === 'low' ? 'Estoque baixo!' : 'Em estoque';
+  infoEl.innerHTML = `Setor: <strong>${esc(setor)}</strong> · Disponível: <strong style="color:${cor}">${qtd} ${esc(unidade)}</strong> · <span style="color:${cor}">${msg}</span>`;
+  infoEl.style.display = 'block';
+
+  // Foca no campo de quantidade
+  const qtdEl = document.getElementById(prefixo + '-qtd');
+  if (qtdEl) { qtdEl.focus(); qtdEl.select(); }
+}
+
+function limparMaterial(prefixo) {
+  document.getElementById(prefixo + '-mat').value = '';
+  const inputEl = document.getElementById(prefixo + '-mat-busca');
+  inputEl.value = '';
+  inputEl.dataset.selecionado = '';
+  document.getElementById(prefixo + '-mat-lista').style.display = 'none';
+  document.getElementById(prefixo + '-mat-info').style.display  = 'none';
+  inputEl.focus();
+}
+
+// Fecha a lista ao clicar fora
+document.addEventListener('click', e => {
+  ['ent','sai'].forEach(p => {
+    const lista = document.getElementById(p + '-mat-lista');
+    const input = document.getElementById(p + '-mat-busca');
+    if (lista && input && !lista.contains(e.target) && e.target !== input) {
+      lista.style.display = 'none';
+    }
+  });
+});
+
+// Navegar na lista com teclado
+document.addEventListener('keydown', e => {
+  ['ent','sai'].forEach(p => {
+    const input = document.getElementById(p + '-mat-busca');
+    const lista = document.getElementById(p + '-mat-lista');
+    if (!input || !lista || lista.style.display === 'none' || document.activeElement !== input) return;
+    const items = lista.querySelectorAll('.mat-item');
+    if (!items.length) return;
+    let idx = [...items].findIndex(i => i.classList.contains('ativo'));
+    if (e.key === 'ArrowDown') { e.preventDefault(); idx = Math.min(idx + 1, items.length - 1); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); idx = Math.max(idx - 1, 0); }
+    else if (e.key === 'Enter' && idx >= 0) { e.preventDefault(); items[idx].click(); return; }
+    else if (e.key === 'Escape') { lista.style.display = 'none'; return; }
+    else return;
+    items.forEach(i => i.classList.remove('ativo'));
+    items[idx].classList.add('ativo');
+    items[idx].scrollIntoView({ block: 'nearest' });
+  });
+});
+
+// ╔═══════════════════════════════════════════════════════╗
 // ║  CARGA INICIAL DE DADOS                               ║
 // ╚═══════════════════════════════════════════════════════╝
 async function carregarDados() {
@@ -1031,8 +1168,7 @@ function toast(msg,type) {
 }
 
 function popularSelects() {
-  const matOpts = materiais.map(m=>`<option value="${esc(m.id)}">${esc(m.nome)} (${esc(m.setor)})</option>`).join('');
-  ['ent-mat','sai-mat'].forEach(id=>{ const el=document.getElementById(id); if(el) el.innerHTML='<option value="">Selecione...</option>'+matOpts; });
+  // Selects de setor para cadastro de material
   const setOpts = setores.map(s=>`<option>${esc(s)}</option>`).join('');
   ['mat-setor'].forEach(id=>{ const el=document.getElementById(id); if(el) el.innerHTML=setOpts; });
   const setAll = '<option value="">Todos os setores</option>'+setores.map(s=>`<option>${esc(s)}</option>`).join('');
@@ -1155,7 +1291,9 @@ async function registrarEntrada() {
   if(m) m.qtd=String(res.novaQtd);
   movimentos.push({tipo:'entrada',nome:m?.nome||'',setor:m?.setor||'',qtd:String(qtd),unidade:m?.unidade||'',data,resp:'',obs,user:CU.nome});
   renderPainel(); renderEstoque(); renderHistSide('entrada','hist-ent');
-  document.getElementById('ent-qtd').value='1'; document.getElementById('ent-obs').value='';
+  document.getElementById('ent-qtd').value='1';
+  document.getElementById('ent-obs').value='';
+  limparMaterial('ent');
   mostrarSucesso('entrada', `+${qtd} ${m?.unidade}(s) de ${m?.nome} registrado com sucesso.`);
 }
 
@@ -1171,7 +1309,10 @@ async function registrarSaida() {
   movimentos.push({tipo:'saida',nome:m?.nome||'',setor:m?.setor||'',qtd:String(qtd),unidade:m?.unidade||'',data,resp,obs,user:CU.nome});
   atualizarSugestoesResponsavel();
   renderPainel(); renderEstoque(); renderHistSide('saida','hist-sai');
-  document.getElementById('sai-qtd').value='1'; document.getElementById('sai-resp').value=''; document.getElementById('sai-obs').value='';
+  document.getElementById('sai-qtd').value='1';
+  document.getElementById('sai-resp').value='';
+  document.getElementById('sai-obs').value='';
+  limparMaterial('sai');
   let msg=`-${qtd} ${m?.unidade}(s) de ${m?.nome} retirado por ${resp}.`;
   if(res.status==='critical') msg+=' Material esgotado!';
   else if(res.status==='low') msg+=' Estoque abaixo do minimo.';
