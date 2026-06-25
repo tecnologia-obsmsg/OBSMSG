@@ -330,6 +330,7 @@ tbody tr:hover td{background:var(--bg)}
       <span class="topbar-user" id="tb-user"></span>
       <span class="role-badge" id="tb-role"></span>
       <span class="topbar-session" id="tb-session"></span>
+      <button class="btn-out" onclick="abrirModalTrocarSenha(false)" title="Alterar senha" style="padding:5px 8px">🔑</button>
       <button class="btn-out" onclick="doLogout()">Sair</button>
     </div>
   </div>
@@ -519,8 +520,8 @@ tbody tr:hover td{background:var(--bg)}
 <!-- Overlay sidebar mobile -->
 <div class="sidebar-overlay" id="sidebar-overlay" onclick="closeSidebar()"></div>
 
-<!-- Bottom nav mobile -->
-<div class="bottom-nav">
+<!-- Bottom nav mobile — oculto até login -->
+<div class="bottom-nav" id="bottom-nav" style="display:none">
   <div class="bottom-nav-items">
     <div class="bn-item active" id="bn-painel" onclick="goPageMobile('painel','bn-painel')"><div class="bn-icon-wrap"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg></div><span>Painel</span></div>
     <div class="bn-item" id="bn-estoque" onclick="goPageMobile('estoque','bn-estoque')"><div class="bn-icon-wrap"><svg viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg></div><span>Estoque</span></div>
@@ -528,6 +529,34 @@ tbody tr:hover td{background:var(--bg)}
     <div class="bn-item" id="bn-saida" onclick="goPageMobile('saida','bn-saida')"><div class="bn-icon-wrap"><svg viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></div><span>Saída</span></div>
     <div class="bn-item" id="bn-alertas" onclick="goPageMobile('alertas','bn-alertas')"><div class="bn-icon-wrap"><svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg><span class="bn-badge" id="bn-badge"></span></div><span>Alertas</span></div>
     <div class="bn-item" id="bn-mais" onclick="toggleSidebar()"><div class="bn-icon-wrap"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg></div><span>Mais</span></div>
+  </div>
+</div>
+
+<!-- Modal troca de senha -->
+<div class="modal-overlay" id="modal-senha">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-title" id="modal-senha-title">Alterar senha</div>
+    <div id="modal-senha-aviso" class="alert a-warn" style="margin-bottom:1rem;display:none">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+      <span>Por segurança, troque a senha padrão antes de continuar.</span>
+    </div>
+    <div class="fg">
+      <label>Senha atual</label>
+      <input type="password" id="senha-atual" placeholder="Digite sua senha atual" maxlength="100">
+    </div>
+    <div class="fg">
+      <label>Nova senha <small style="font-weight:400;text-transform:none">(mín. 8 chars, 1 maiúscula, 1 número)</small></label>
+      <input type="password" id="senha-nova" placeholder="Digite a nova senha" maxlength="100">
+    </div>
+    <div class="fg">
+      <label>Confirmar nova senha</label>
+      <input type="password" id="senha-confirma" placeholder="Repita a nova senha" maxlength="100">
+    </div>
+    <div id="senha-erro" class="login-err" style="display:none"></div>
+    <div class="modal-actions">
+      <button class="btn" id="btn-cancelar-senha" onclick="fecharModalSenha()">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarNovaSenha()">Salvar nova senha</button>
+    </div>
   </div>
 </div>
 
@@ -694,12 +723,15 @@ async function doLogin() {
   try {
     const passHash = await sha256(passRaw);
     const res = await api('login', { email, passHash, unit: selectedUnit });
-    if (!res.ok) { showErr(res.erro || 'Erro ao fazer login.'); return; }
+    // Sempre mostra a mesma mensagem — não revela se e-mail existe ou não
+    if (!res.ok) { showErr('E-mail ou senha incorretos.'); return; }
 
     TOKEN = res.token; CU = { nome: res.nome, perfil: res.perfil, email }; CUnit = res.unit;
 
     document.getElementById('login-screen').style.display = 'none';
     document.getElementById('app').style.display = 'block';
+    // Mostra bottom-nav apenas após login bem-sucedido
+    document.getElementById('bottom-nav').style.display = 'block';
     document.getElementById('tb-unit').textContent = UNITS[CUnit];
     document.getElementById('tb-user').textContent = CU.nome;
     const rb = document.getElementById('tb-role');
@@ -710,6 +742,11 @@ async function doLogin() {
     setDates();
     iniciarSessaoLocal();
     await carregarDados();
+
+    // Força troca de senha se for senha padrão ou primeiro login
+    if (res.primeiroLogin || passRaw === 'Admin@2026') {
+      setTimeout(() => abrirModalTrocarSenha(true), 800);
+    }
   } finally {
     btn.disabled = false; btn.textContent = 'Entrar';
   }
@@ -721,6 +758,7 @@ async function doLogout(auto) {
   TOKEN = null; CU = null; CUnit = null; selectedUnit = null;
   materiais = []; movimentos = []; setores = []; lastRelData = null;
   document.getElementById('app').style.display = 'none';
+  document.getElementById('bottom-nav').style.display = 'none';
   document.getElementById('login-screen').style.display = 'flex';
   document.getElementById('l-email').value = '';
   document.getElementById('l-pass').value = '';
@@ -1174,6 +1212,67 @@ function exportarExcel() {
   a.href=url; a.download=`estoque_${UNITS[d.unit].replace(/\s/g,'_')}_${d.periodo}_${new Date().toISOString().split('T')[0]}.csv`;
   document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
   toast('CSV gerado! Abra no Excel.');
+}
+
+// ╔═══════════════════════════════════════════════════════╗
+// ║  TROCA DE SENHA                                       ║
+// ╚═══════════════════════════════════════════════════════╝
+let trocaSenhaObrigatoria = false;
+
+function abrirModalTrocarSenha(obrigatoria) {
+  trocaSenhaObrigatoria = obrigatoria;
+  const aviso = document.getElementById('modal-senha-aviso');
+  const btnCancelar = document.getElementById('btn-cancelar-senha');
+  const titulo = document.getElementById('modal-senha-title');
+  // Se for obrigatória (primeiro login/senha padrão), não deixa cancelar
+  aviso.style.display = obrigatoria ? 'flex' : 'none';
+  btnCancelar.style.display = obrigatoria ? 'none' : '';
+  titulo.textContent = obrigatoria ? 'Troque sua senha para continuar' : 'Alterar senha';
+  // Limpa campos
+  ['senha-atual','senha-nova','senha-confirma'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('senha-erro').style.display = 'none';
+  document.getElementById('modal-senha').classList.add('open');
+  document.getElementById('senha-atual').focus();
+}
+
+function fecharModalSenha() {
+  if (trocaSenhaObrigatoria) {
+    // Não deixa fechar se for obrigatória — força logout
+    if (confirm('Você precisa trocar a senha para usar o sistema. Deseja sair?')) {
+      document.getElementById('modal-senha').classList.remove('open');
+      doLogout();
+    }
+    return;
+  }
+  document.getElementById('modal-senha').classList.remove('open');
+}
+
+async function salvarNovaSenha() {
+  const atual    = document.getElementById('senha-atual').value;
+  const nova     = document.getElementById('senha-nova').value;
+  const confirma = document.getElementById('senha-confirma').value;
+  const erroEl   = document.getElementById('senha-erro');
+
+  function mostrarErro(msg) { erroEl.textContent = msg; erroEl.style.display = 'block'; }
+  erroEl.style.display = 'none';
+
+  if (!atual)           { mostrarErro('Informe a senha atual.'); return; }
+  if (!nova)            { mostrarErro('Informe a nova senha.'); return; }
+  if (nova.length < 8)  { mostrarErro('A nova senha deve ter pelo menos 8 caracteres.'); return; }
+  if (!/[A-Z]/.test(nova)) { mostrarErro('A nova senha deve ter pelo menos uma letra maiúscula.'); return; }
+  if (!/[0-9]/.test(nova)) { mostrarErro('A nova senha deve ter pelo menos um número.'); return; }
+  if (nova !== confirma) { mostrarErro('As senhas não conferem.'); return; }
+  if (nova === atual)   { mostrarErro('A nova senha deve ser diferente da atual.'); return; }
+
+  const atualHash = await sha256(atual);
+  const novaHash  = await sha256(nova);
+
+  const res = await api('trocarSenha', { atualHash, novaHash });
+  if (!res.ok) { mostrarErro(res.erro || 'Erro ao trocar senha. Verifique a senha atual.'); return; }
+
+  document.getElementById('modal-senha').classList.remove('open');
+  trocaSenhaObrigatoria = false;
+  toast('Senha alterada com sucesso!');
 }
 
 // ╔═══════════════════════════════════════════════════════╗
