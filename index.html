@@ -614,9 +614,11 @@ tbody tr:hover td{background:var(--bg)}
 'use strict';
 
 // ╔═══════════════════════════════════════════════════════╗
-// ║  CONFIGURAÇÃO — edite apenas esta linha              ║
+// ║  CONFIGURAÇÃO — edite apenas estas linhas            ║
 // ╚═══════════════════════════════════════════════════════╝
 const API_URL = 'https://script.google.com/macros/s/AKfycbyPulCy2QMxjBo5NO6K7bIAer8SKddH2jVLTpX39fknksh9KgL1ZC9CP4MsEc6U54A/exec';
+// Deve ser identica ao API_KEY no Apps Script
+const API_KEY = 'OBS-MSG-2026-K7x9mN3pQr8vLw2j';
 
 // ── Constantes ───────────────────────────────────────────
 const UNITS = { cei_jose:'CEI Dom José Gaspar', cei_estevao:'CEI Santo Estevão Rei', cei_escolastica:'CEI Santa Escolástica' };
@@ -625,11 +627,22 @@ const SESSION_MAX_MS     = 8  * 60 * 60 * 1000;
 const PERIODO_LABEL = { mes:'Mês atual', mes_ant:'Mês anterior', ano:'Ano atual', tudo:'Todo o histórico' };
 
 // ── Estado da aplicação ──────────────────────────────────
-let CU = null, CUnit = null, TOKEN = null;
+let CU = null, CUnit = null, TOKEN = null, CSRF = null;
 let materiais = [], movimentos = [], setores = [], ultimosResponsaveis = [];
 let sessionExpAt = 0, sessionAbsAt = 0;
 let sessionTick = null, inactivityTimer = null;
 let lastRelData = null, auditCache = [];
+
+// Fingerprint do browser — identifica o cliente para rate limiting
+const FP = (function() {
+  try {
+    var nav = window.navigator;
+    var raw = [nav.userAgent, nav.language, screen.width, screen.height, new Date().getTimezoneOffset()].join('|');
+    var hash = 0;
+    for (var i = 0; i < raw.length; i++) { hash = ((hash << 5) - hash) + raw.charCodeAt(i); hash |= 0; }
+    return Math.abs(hash).toString(16).padStart(8,'0');
+  } catch(e) { return 'unknown'; }
+})();
 
 // ╔═══════════════════════════════════════════════════════╗
 // ║  SEGURANÇA — HASH SHA-256                             ║
@@ -656,16 +669,20 @@ function san(str, max) {
 async function api(action, body, showLoading) {
   if (showLoading !== false) loading(true, 'Processando...');
   try {
-    const payload = { action, token: TOKEN, ...body };
+    const payload = {
+      action,
+      token:  TOKEN,
+      apiKey: API_KEY,  // chave secreta compartilhada
+      fp:     FP,       // fingerprint para rate limiting
+      ...body
+    };
     const res = await fetch(API_URL, {
       method: 'POST',
       body: JSON.stringify(payload),
-      headers: { 'Content-Type': 'text/plain' } // Apps Script requer text/plain para evitar preflight
+      headers: { 'Content-Type': 'text/plain' }
     });
     if (!res.ok) throw new Error('Erro de conexão: ' + res.status);
     const data = await res.json();
-
-    // Sessão expirada no servidor
     if (!data.ok && data.erro && data.erro.includes('Sessão expirada')) {
       doLogout(true); return data;
     }
@@ -695,9 +712,9 @@ function loading(show, msg) {
 // ╚═══════════════════════════════════════════════════════╝
 const SESS_KEY = 'obs_sess_v1'; // chave no sessionStorage
 
-function salvarSessaoLocal(token, cu, cunit, expAt, absAt) {
+function salvarSessaoLocal(token, cu, cunit, expAt, absAt, csrf) {
   try {
-    sessionStorage.setItem(SESS_KEY, JSON.stringify({ token, cu, cunit, expAt, absAt }));
+    sessionStorage.setItem(SESS_KEY, JSON.stringify({ token, cu, cunit, expAt, absAt, csrf: csrf||'' }));
   } catch(e) {}
 }
 
@@ -720,7 +737,7 @@ function iniciarSessaoLocal() {
     const el = document.getElementById('tb-session');
     if (el) el.textContent = `Sessão: ${m}m${String(s).padStart(2,'0')}s`;
     // Atualiza sessão salva periodicamente
-    salvarSessaoLocal(TOKEN, CU, CUnit, sessionExpAt, sessionAbsAt);
+    salvarSessaoLocal(TOKEN, CU, CUnit, sessionExpAt, sessionAbsAt, CSRF);
   }, 1000);
 }
 
@@ -760,6 +777,7 @@ async function doLogin() {
     if (!res.ok) { showErr('E-mail ou senha incorretos.'); return; }
 
     TOKEN = res.token;
+    CSRF  = res.csrf || '';
     CU    = { nome: res.nome, perfil: res.perfil, email };
     CUnit = res.unit;
 
@@ -814,11 +832,11 @@ function hideMsg()   { ['login-err','login-warn'].forEach(id=>document.getElemen
     if (Date.now() > sess.expAt || Date.now() > sess.absAt) {
       limparSessaoLocal(); return;
     }
-    // Valida o token no servidor
+    // Valida o token no servidor — inclui API Key
     loading(true, 'Restaurando sessão...');
     const res = await fetch(API_URL, {
       method: 'POST',
-      body: JSON.stringify({ action: 'ping', token: sess.token }),
+      body: JSON.stringify({ action: 'ping', token: sess.token, apiKey: API_KEY, fp: FP }),
       headers: { 'Content-Type': 'text/plain' }
     });
     const data = await res.json();
@@ -827,6 +845,7 @@ function hideMsg()   { ['login-err','login-warn'].forEach(id=>document.getElemen
 
     // Sessão válida — restaura sem precisar logar novamente
     TOKEN  = sess.token;
+    CSRF   = sess.csrf || '';
     CU     = sess.cu;
     CUnit  = sess.cunit;
     sessionExpAt = sess.expAt;
